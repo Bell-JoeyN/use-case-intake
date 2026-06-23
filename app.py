@@ -46,6 +46,15 @@ with st.sidebar:
     st.write("Step 3: Intake Form")
     st.write("Step 4: Results")
 
+    st.divider()
+
+    # 🔁 Restart button
+    if st.button("🔁 Restart Intake"):
+        for key in list(st.session_state.keys()):
+            del st.session_state[key]
+
+        st.rerun()
+
 # ---------------- PAGE 1 ----------------
 def welcome():
     st.markdown('<div class="big-title">⚙️ Use Case Intake Portal</div>', unsafe_allow_html=True)
@@ -61,7 +70,7 @@ def welcome():
     st.success("Takes ~5 minutes")
 
     if st.button("🚀 Start"):
-        st.session_state.page = "form"
+        st.session_state.page = "screening"
         st.rerun()
 
 # ---------------- SCREENING ----------------
@@ -83,6 +92,25 @@ def screening_section():
     with col2:
         users = st.number_input("Number of users", min_value=1, value=10)
         multi_team = st.checkbox("Impacts **2 or more teams**")
+    st.markdown("### 📋 Additional Critical Evaluation")
+
+    impact_critical = st.selectbox(
+        "Business impact if unavailable 4+ hours",
+        ["Minimal", "Moderate disruption", "Revenue loss / customer impact / compliance breach"]
+    )
+
+    systems_touched = st.text_area(
+        "Applications/systems involved (e.g., SAP, IBMS, SharePoint)"
+    )
+
+    data_combination = st.selectbox(
+        "Data complexity",
+        ["Single source & clean", "Multiple sources / some transformation", "Multiple sources / messy"]
+    )
+
+    rules_documentation = st.selectbox(
+    "Business rules clarity",
+    ["Well documented, few exceptions", "Some gaps/exceptions", "Poorly documented with many exceptions"])
 
     # ---------------- COMPLEXITY FLAGS ----------------
     st.markdown("### 🟡 Complexity Indicators")
@@ -105,23 +133,12 @@ def screening_section():
             ["Simple / well documented", "Some exceptions", "Complex / undocumented"]
         )
 
-    # ---------------- AI CONTEXT ----------------
-    st.markdown("### 🧠 Impact & Context")
-
-    impact = st.selectbox(
-        "Impact if solution is down for 4+ hours",
-        ["Minimal", "Moderate disruption", "Revenue / compliance impact"]
-    )
-
-    systems_list = st.text_area("List systems involved (SAP, SharePoint, etc.)")
-
     # ---------------- SUBMIT ----------------
     if st.button("Evaluate Screening"):
-
-        # HARD STOP LOGIC
         out = False
         reasons = []
 
+        # -------- ORIGINAL HARD STOPS --------
         if constant_support:
             out = True
             reasons.append("Requires 24/7 support")
@@ -138,13 +155,30 @@ def screening_section():
             out = True
             reasons.append("Replacing core enterprise system")
 
-        if out:
-            st.error("⛔ OUT OF SCOPE → Route to IT")
-            for r in reasons:
-                st.write(f"- {r}")
+        # -------- NEW HARD STOPS --------
+        if impact_critical == "Revenue loss / customer impact / compliance breach":
+            out = True
+            reasons.append("High business impact if unavailable")
 
+        if data_combination == "Multiple sources / messy":
+            out = True
+            reasons.append("High data complexity (multiple messy sources)")
+
+        if rules_documentation == "Poorly documented with many exceptions":
+            out = True
+            reasons.append("Unclear and complex business rules")
+
+        if systems_touched and len(systems_touched.split(",")) >= 3:
+            out = True
+            reasons.append("Touches multiple complex systems")
+
+        # -------- FINAL DECISION --------
+        if out:
+            st.session_state.screening_outcome = "out_of_scope"
+            st.session_state.screening_reasons = reasons
             st.session_state.screening_passed = False
-            return
+            st.session_state.page = "results"
+            st.rerun()
 
         # ---------------- COMPLEXITY SCORING ----------------
         complexity_flags = 0
@@ -160,8 +194,6 @@ def screening_section():
         if data_complexity != "Clean & standardized":
             complexity_flags += 1
         if rules_complexity != "Simple / well documented":
-            complexity_flags += 1
-        if impact == "Revenue / compliance impact":
             complexity_flags += 1
 
         # ---------------- ROUTING ----------------
@@ -387,12 +419,22 @@ def intake_form():
 
 # ---------------- RESULTS ----------------
 def results():
+
+    if st.session_state.get("screening_outcome") == "out_of_scope":
+        st.title("⛔ Out of Scope")
+
+        st.error("This request should be routed to IT.")
+
+        for r in st.session_state.get("screening_reasons", []):
+            st.write(f"- {r}")
+
+        return
+
     score = st.session_state.score
 
     st.title("📊 Results")
     st.metric("Final Score", score)
 
-    # FAST TRACK (from PDF logic)
     if score >= 80:
         st.success("🚀 FAST TRACK\n15-min review + start build")
     elif score >= 40:
@@ -400,15 +442,24 @@ def results():
     else:
         st.error("📚 Training Required")
 
+
 # ---------------- ROUTER ----------------
 if st.session_state.page == "welcome":
     welcome()
 
-elif st.session_state.page == "form":
+elif st.session_state.page == "screening":
     screening_section()
 
     if st.session_state.screening_passed:
-        intake_form()
+        st.session_state.page = "form"
+        st.rerun()
+
+elif st.session_state.page == "form":
+    intake_form()
 
     if st.session_state.submitted:
-        results()
+        st.session_state.page = "results"
+        st.rerun()
+
+elif st.session_state.page == "results":
+    results()
