@@ -123,9 +123,19 @@ def screening_section():
         multi_systems = st.checkbox("Touches **multiple systems/apps**")
 
     with col4:
-        data_complexity = st.selectbox(
-            "Data quality",
-            ["Clean & standardized", "Some transformation needed", "Messy / multiple sources"]
+        st.markdown("**Data Types Used**")
+
+        data_types = st.multiselect(
+            "What type of data will your solution use?",
+            [
+                "Highly sensitive PII (SIN, bank, passport, biometrics)",
+                "Regular PII (name, DOB, address, email)",
+                "Corporate financials",
+                "Critical business / intellectual property",
+                "Internal data",
+                "Public data",
+                "Business contact info (employee-related)"
+            ]
         )
 
         rules_complexity = st.selectbox(
@@ -191,7 +201,14 @@ def screening_section():
             complexity_flags += 1
         if multi_systems:
             complexity_flags += 1
-        if data_complexity != "Clean & standardized":
+        # Flag sensitive data types
+        sensitive_data = any(dt in data_types for dt in [
+            "Highly sensitive PII (SIN, bank, passport, biometrics)",
+            "Regular PII (name, DOB, address, email)",
+            "Corporate financials",
+            "Critical business / intellectual property"
+        ])
+        if sensitive_data:
             complexity_flags += 1
         if rules_complexity != "Simple / well documented":
             complexity_flags += 1
@@ -258,6 +275,53 @@ def intake_form():
             ])
 
         st.divider()
+        # -------------------------------------------------
+        # 📌 USE CASE DETAILS (NEW SECTION)
+        # -------------------------------------------------
+
+        st.markdown("## 📝 Use Case Details")
+
+        # ---------- USE CASE DESCRIPTION ----------
+        with st.expander("📖 Describe Your Use Case", expanded=True):
+
+            use_case_desc = st.text_area(
+                "Explain what you are trying to build and why",
+                placeholder="Describe the current problem, what triggers the process, and desired outcome..."
+            )
+
+        # ---------- BUSINESS UNIT ----------
+        with st.expander("🏢 Business Unit"):
+
+            business_unit = st.selectbox(
+                "Which business unit does this belong to?",
+                [
+                    "Finance",
+                    "HR",
+                    "Operations",
+                    "Customer Service",
+                    "Marketing",
+                    "Sales",
+                    "IT",
+                    "Other"
+                ]
+            )
+
+        # ---------- CMO ----------
+        with st.expander("📊 Current Mode of Operation (CMO)"):
+
+            cmo = st.text_area(
+                "How is this process done today?",
+                placeholder="Describe current steps, tools used, manual work, pain points, delays, errors..."
+            )
+
+        # ---------- FMO ----------
+        with st.expander("🚀 Future Mode of Operation (FMO)"):
+
+            fmo = st.text_area(
+                "What should the future state look like?",
+                placeholder="Describe automation, expected improvements, faster turnaround, reduced errors..."
+            )
+
 
         # -------------------------------------------------
         # 💼 EXPANDED BUSINESS VALUE (PROD VERSION)
@@ -354,8 +418,43 @@ def intake_form():
 
         st.markdown("### 🔧 Technical Needs")
 
-        premium = st.checkbox("Premium connectors needed?")
-        custom = st.checkbox("Custom connectors/API needed?")
+        # ---------- CONNECTORS ----------
+        connectors = st.multiselect(
+            "What connectors will your solution use?",
+            [
+                "SharePoint",
+                "Dataverse",
+                "Excel (OneDrive/SharePoint)",
+                "Outlook",
+                "Teams",
+                "SQL Server",
+                "Azure (Functions, Storage, etc.)",
+                "SAP",
+                "ServiceNow",
+                "Salesforce",
+                "HTTP / API (custom integration)"
+            ]
+        )
+
+        # ---------- AUTO-DETECT PREMIUM ----------
+        premium_connectors = [
+            "SQL Server",
+            "Azure (Functions, Storage, etc.)",
+            "SAP",
+            "ServiceNow",
+            "Salesforce",
+            "HTTP / API (custom integration)"
+        ]
+
+        auto_premium = any(c in connectors for c in premium_connectors)
+
+        if auto_premium:
+            st.info("⚡ Premium connectors detected based on your selection")
+
+        # ---------- USER FLAGS ----------
+        premium = st.checkbox("Requires premium connectors?", value=auto_premium)
+        custom = st.checkbox("Requires custom connectors or APIs?")
+
 
         submitted = st.form_submit_button("Submit")
 
