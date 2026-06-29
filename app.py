@@ -93,61 +93,62 @@ def screening_section():
 
     st.markdown("### Screening Questions")
 
-    a_constant_support = st.checkbox(
-        "A. My solution requires real-time / hourly monitoring to function (constant support)."
-    )
-    b_many_users = st.checkbox(
-        "B. My solution may reach more than 100 users through its lifetime."
-    )
-    c_external_facing = st.checkbox(
-        "C. My solution will be external facing (for example: customer or vendor)."
-    )
-    d_replace_critical = st.checkbox(
-        "D. My solution will replace an existing critical system / application."
-    )
-    e_many_non_ms_apps = st.checkbox(
-        "E. My solution will touch / connect to more than 3 applications outside of Microsoft."
-    )
+    screening_options = [
+        "A. My solution requires real-time / hourly monitoring to function (constant support).",
+        "B. My solution may reach more than 100 users through its lifetime.",
+        "C. My solution will be external facing (for example: customer or vendor).",
+        "D. My solution will replace an existing critical system / application.",
+        "E. My solution will touch / connect to more than 3 applications outside of Microsoft.",
+        "F. None of the above ✅"
+    ]
 
-    none_of_above = st.checkbox("F. None of the above ✅ (recommended if nothing applies)")
+    selected_screening = st.multiselect(
+        "Select all that apply",
+        screening_options
+    )
 
     external_apps = st.text_area(
         "If E is selected, list the non-Microsoft applications/systems involved:",
-        placeholder="Example: SAP, Salesforce, Jira, ServiceNow"
+        placeholder="Example: SAP, Salesforce, Jira, ServiceNow",
+        disabled="E. My solution will touch / connect to more than 3 applications outside of Microsoft." not in selected_screening
     )
 
     st.caption(
         "Critical system = any system where failure, downtime, or data corruption directly halts operations."
     )
 
-    # ✅ UX Improvement: Auto-uncheck behavior
-    if none_of_above:
-        a_constant_support = False
-        b_many_users = False
-        c_external_facing = False
-        d_replace_critical = False
-        e_many_non_ms_apps = False
+    # ✅ Validation: None of the above cannot be selected with anything else
+    if "F. None of the above ✅" in selected_screening and len(selected_screening) > 1:
+        st.error("You cannot select 'None of the above' together with another option. Please choose either 'None of the above' or the applicable screening items.")
 
     if st.button("Evaluate Scope"):
+        # Block invalid combination
+        if "F. None of the above ✅" in selected_screening and len(selected_screening) > 1:
+            st.stop()
+
         reasons = []
 
-        # ✅ If NONE selected → Proceed (clean UX path)
-        if none_of_above:
+        # ✅ In scope path
+        if "F. None of the above ✅" in selected_screening or len(selected_screening) == 0:
             st.session_state.screening_outcome = "in_scope"
             st.session_state.screening_reasons = []
             st.session_state.page = "form"
             st.rerun()
 
-        # 🔴 Check out-of-scope flags
-        if a_constant_support:
+        # 🔴 Out-of-scope reasons
+        if "A. My solution requires real-time / hourly monitoring to function (constant support)." in selected_screening:
             reasons.append("Requires real-time / hourly monitoring or constant support")
-        if b_many_users:
+
+        if "B. My solution may reach more than 100 users through its lifetime." in selected_screening:
             reasons.append("May reach more than 100 users")
-        if c_external_facing:
+
+        if "C. My solution will be external facing (for example: customer or vendor)." in selected_screening:
             reasons.append("External-facing use case")
-        if d_replace_critical:
+
+        if "D. My solution will replace an existing critical system / application." in selected_screening:
             reasons.append("Replaces an existing critical system / application")
-        if e_many_non_ms_apps:
+
+        if "E. My solution will touch / connect to more than 3 applications outside of Microsoft." in selected_screening:
             if external_apps.strip():
                 reasons.append(
                     f"Connects to more than 3 non-Microsoft applications/systems: {external_apps.strip()}"
@@ -155,18 +156,10 @@ def screening_section():
             else:
                 reasons.append("Connects to more than 3 non-Microsoft applications/systems")
 
-        # 🔴 Out-of-scope
         if reasons:
             st.session_state.screening_outcome = "out_of_scope"
             st.session_state.screening_reasons = reasons
             st.session_state.page = "results"
-            st.rerun()
-
-        # ✅ No selections at all (fallback safety)
-        if not any([a_constant_support, b_many_users, c_external_facing, d_replace_critical, e_many_non_ms_apps]):
-            st.session_state.screening_outcome = "in_scope"
-            st.session_state.screening_reasons = []
-            st.session_state.page = "form"
             st.rerun()
 
 # ---------------- FORM ----------------
