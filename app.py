@@ -109,6 +109,8 @@ def screening_section():
         "E. My solution will touch / connect to more than 3 applications outside of Microsoft."
     )
 
+    none_of_above = st.checkbox("F. None of the above ✅ (recommended if nothing applies)")
+
     external_apps = st.text_area(
         "If E is selected, list the non-Microsoft applications/systems involved:",
         placeholder="Example: SAP, Salesforce, Jira, ServiceNow"
@@ -118,9 +120,25 @@ def screening_section():
         "Critical system = any system where failure, downtime, or data corruption directly halts operations."
     )
 
+    # ✅ UX Improvement: Auto-uncheck behavior
+    if none_of_above:
+        a_constant_support = False
+        b_many_users = False
+        c_external_facing = False
+        d_replace_critical = False
+        e_many_non_ms_apps = False
+
     if st.button("Evaluate Scope"):
         reasons = []
 
+        # ✅ If NONE selected → Proceed (clean UX path)
+        if none_of_above:
+            st.session_state.screening_outcome = "in_scope"
+            st.session_state.screening_reasons = []
+            st.session_state.page = "form"
+            st.rerun()
+
+        # 🔴 Check out-of-scope flags
         if a_constant_support:
             reasons.append("Requires real-time / hourly monitoring or constant support")
         if b_many_users:
@@ -137,12 +155,15 @@ def screening_section():
             else:
                 reasons.append("Connects to more than 3 non-Microsoft applications/systems")
 
+        # 🔴 Out-of-scope
         if reasons:
             st.session_state.screening_outcome = "out_of_scope"
             st.session_state.screening_reasons = reasons
             st.session_state.page = "results"
             st.rerun()
-        else:
+
+        # ✅ No selections at all (fallback safety)
+        if not any([a_constant_support, b_many_users, c_external_facing, d_replace_critical, e_many_non_ms_apps]):
             st.session_state.screening_outcome = "in_scope"
             st.session_state.screening_reasons = []
             st.session_state.page = "form"
